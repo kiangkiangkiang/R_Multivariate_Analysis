@@ -1,0 +1,172 @@
+---
+title: "Multivariate"
+author: "Bo-Syue Jiang"
+output:  
+  pdf_document:
+    includes:
+      in_header: header.tex
+    latex_engine: xelatex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# A Holtelling T test DEMO
+
+## A simple example:
+
+$\alpha = 0.05$  
+$n=3$  
+$\textbf{X}$ ~ $N_2(\mu ,\tiny{\sum}),\tiny{\sum}>0$  
+$\textbf{X} = \begin{bmatrix} 4&&8&&6\\ 11&&8&&5\end{bmatrix}$
+
+
+## (1) \emph{Test} $H_0:\mu_0^T = (7,7) \ \mbox{versus}\  H_1:\mu_0^T \neq (7,7)$
+
+### 1. find $\bar{X}$ and the inverse of variance ($S^{-1}$)
+\[\begin{aligned}
+\bar{x_1} &= \frac{4+8+6}{3} = 6\\
+\bar{x_2} &= \frac{11+8+5}{3} = 8  \\
+s_{11} &= \frac{(4-6)^2+(8-6)^2+(6-6)^2}{3-1} = 4  \\
+s_{22} &= \frac{(11-8)^2+(8-8)^2+(5-8)^2}{3-1} = 9 \\
+s_{12} &= \frac{(4-6)(11-8)+(8-6)(8-8)+(6-6)(5-8)}{3-1} = -3 \\ 
+ \therefore \bar{X} &= \begin{bmatrix} 4\\6\end{bmatrix}\\
+S &= \begin{bmatrix} 4&&-3\\-3&&9 \end{bmatrix} \end{aligned}
+\]
+Below is the R code that gets the inverse of variance ($S^{-1}$)
+```{r}
+library(matlib)
+S <- as.matrix(rbind(c(4,-3),c(-3,9)))
+inv(S)
+```
+
+### 2. find Holtelling's $T^2$
+\[ \begin{aligned} T_{p,n-1}^2 &= n(\bar{X}-\mu_0)^T S^{-1}(\bar{X}-\mu_0)\\
+&=3(\begin{bmatrix}6\\8\end{bmatrix} - \begin{bmatrix}7\\7\end{bmatrix})^T\begin{bmatrix}0.33&&0.11\\0.11&&0.15\end{bmatrix}(\begin{bmatrix}6\\8\end{bmatrix} - \begin{bmatrix}7\\7\end{bmatrix})\\
+&=3(\begin{bmatrix}-1&&1 \end{bmatrix})\begin{bmatrix}0.33&&0.11\\0.11&&0.15\end{bmatrix}(\begin{bmatrix}-1\\1\end{bmatrix})\\&=0.78
+\end{aligned} \]
+
+### 3. Conclusion
+
+\[ \begin{aligned} &\because T^2=0.78 < \frac{(n-1)p}{n-p}F_{2,1}^{0.05} = (4)(199.5)=798\\
+ &\therefore do\  not \ reject \ H_0 \end{aligned}\]
+
+##  (2) Find and sketch the 95% confidence ellipse for ($\mu_1,\mu_2$)
+
+### 1.find eigenvalues and eigenvectors of S
+
+```{r}
+S <- as.matrix(rbind(c(4,-3),c(-3,9)))
+lamda<-eigen(S)$values
+e<-eigen(S)$vectors
+lamda
+e
+```
+
+### 2.Draw a confidence ellipse
+
+```{r}
+library(plotrix)
+x1Bar <- 6
+x2Bar <- 8
+r1 <- sqrt(lamda[1])*sqrt(798/3)
+r2 <- sqrt(lamda[2])*sqrt(798/3)
+par(pty="s")
+plot(c(-100,100), c(-100,100),xlab='x1',ylab='x2',main="Confidence Region")
+draw.ellipse(x1Bar, x2Bar,r2,r1,angle=64.9028,deg=TRUE,border=' red',col='lightblue')
+abline(a=8-6*(e[1,1]/e[2,1]),b=e[1,1]/e[2,1])
+abline(a=8-6*(e[1,1]/e[2,1]),b=e[1,2]/e[2,2])
+text(80,-10,"e1")
+text(50,80,"e2")
+points(7,7,type="p",col=2,pch=16)
+text(25,-5,"(7,7)")
+
+```
+
+### 3.Find 95% simultaneous $T^2$-intervals for ($\mu_1,\mu_2$)
+
+\[\bar{x_i}-\sqrt{\frac{(n-1)p}{n-p}F_{p,n-p}^\alpha}\sqrt{\frac{s_{ii}}{n}}\leq \mu_i \leq  \bar{x_i}+\sqrt{\frac{(n-1)p}{n-p}F_{p,n-p}^\alpha}\sqrt{\frac{s_{ii}}{n}}
+\]
+$$ \mu_1:(-26.62,38.62)  $$
+$$ \mu_2:(-40.93,56.93)  $$
+Add R code below
+```{r eval=FALSE,results = 'hide'}
+abline(a=-26.61901,b=0,lty=2)
+abline(a=38.61901,b=0,lty=2)
+abline(v=-40.92852,b=0,lty=2)
+abline(v=56.92852,b=0,lty=2)
+```
+
+
+```{r echo=FALSE}
+library(plotrix)
+x1Bar <- 6
+x2Bar <- 8
+r1 <- sqrt(lamda[1])*sqrt(798/3)
+r2 <- sqrt(lamda[2])*sqrt(798/3)
+par(pty="s")
+plot(c(-100,100), c(-100,100),xlab='x1',ylab='x2',main="Confidence Region")
+draw.ellipse(x1Bar, x2Bar,r2,r1,angle=64.9028,deg=TRUE,border=' red',col='lightblue')
+abline(a=8-6*(e[1,1]/e[2,1]),b=e[1,1]/e[2,1])
+abline(a=8-6*(e[1,1]/e[2,1]),b=e[1,2]/e[2,2])
+text(80,-10,"e1")
+text(50,80,"e2")
+points(7,7,type="p",col=2,pch=16)
+text(25,-5,"(7,7)")
+abline(a=-26.61901,b=0,lty=2)
+abline(a=38.61901,b=0,lty=2)
+abline(v=-40.92852,b=0,lty=2)
+abline(v=56.92852,b=0,lty=2)
+```
+
+### 4.Obtain 95% Bonferroni simultaneous confidence intervals for ($\mu_1,\mu_2$)
+
+\[ \bar{x_i}-t_{n-1}^{\frac{\alpha}{(2p)}}\sqrt{\frac{S_{ii}}{n}} \leq \mu_i \leq \bar{x_i}+t_{n-1}^{\frac{\alpha}{(2p)}}\sqrt{\frac{S_{ii}}{n}}
+\]
+$$ \mu_1:(-26.62,38.62)  $$
+$$ \mu_2:(-40.93,56.93)  $$
+
+Add R code below
+```{r eval=FALSE,results = 'hide'}
+abline(a=-2.042489,b=0,lty=4,col=2)
+abline(a=14.04249,b=0,lty=4,col=2)
+abline(v=--4.063734,b=0,lty=4,col=2)
+abline(v=20.06373,b=0,lty=4,col=2)
+```
+
+
+```{r echo=FALSE}
+library(plotrix)
+x1Bar <- 6
+x2Bar <- 8
+r1 <- sqrt(lamda[1])*sqrt(798/3)
+r2 <- sqrt(lamda[2])*sqrt(798/3)
+par(pty="s")
+plot(c(-100,100), c(-100,100),xlab='x1',ylab='x2',main="Confidence Region")
+draw.ellipse(x1Bar, x2Bar,r2,r1,angle=64.9028,deg=TRUE,border=' red',col='lightblue')
+abline(a=8-6*(e[1,1]/e[2,1]),b=e[1,1]/e[2,1])
+abline(a=8-6*(e[1,1]/e[2,1]),b=e[1,2]/e[2,2])
+text(80,-10,"e1")
+text(50,80,"e2")
+points(7,7,type="p",col=2,pch=16)
+text(25,-5,"(7,7)")
+abline(a=-26.61901,b=0,lty=2)
+abline(a=38.61901,b=0,lty=2)
+abline(v=-40.92852,b=0,lty=2)
+abline(v=56.92852,b=0,lty=2)
+
+abline(a=-2.042489,b=0,lty=4,col=2)
+abline(a=14.04249,b=0,lty=4,col=2)
+abline(v=--4.063734,b=0,lty=4,col=2)
+abline(v=20.06373,b=0,lty=4,col=2)
+```
+
+### 5.Compare the outcomes in 2,3,and 4.
+由2.4中的圖可看出，無論是confidence ellipse,simulaneous $T^2$-intervals或是Bonferroni simultaneous confidence intervals，都有包含(7,7)，因此在各種方式下，結論皆一致，不拒絕虛無假設，而在2.4的方法中，明顯看出信賴域大幅縮減，可見在調整$\alpha$後的檢定中，相對嚴謹許多，因此結果可能較為精確，反之，confidence ellipse和$T^2$-intervals中，都是透過F分配建立信賴區間，因此差異不大。
+
+
+
+
+
+

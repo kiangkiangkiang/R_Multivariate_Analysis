@@ -1,0 +1,271 @@
+---
+title: "Factor Analysis"
+author: "Bo-Syue Jiang"
+output:  
+  pdf_document:
+    includes:
+      in_header: header.tex
+    latex_engine: xelatex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r echo=FALSE,results='hide'}
+options(scipen = 999)
+```
+
+
+# Use EX_919.csv for example
+
+```{r}
+# Data Preprocession
+
+#original data = mydata
+mydata<-read.csv("EX_919.csv",header=F)
+
+#standardized data = zData
+zData<-scale(mydata)
+
+colnames(zData)<-c("sales_growth",
+                  "sales_profit_ability",
+                  "new_account_sales",
+                  "creativity_test",
+                  "mechanical_reasoning_test",
+                  "abstract_reasoning_test",
+                  "mathematics_test")
+```
+## (a)
+
+### Principal component 
+
+$\lambda$：
+```{r}
+sigma<-cov(zData)
+lambda<-round(eigen(sigma)$values,4)
+lambda
+```
+$e$：
+```{r}
+e<-round(eigen(sigma)$vectors,4)
+e
+```
+
+* m=2：
+
+$L$：
+```{r}
+commonFactor1<-sqrt(lambda[1])*e[,1]
+commonFactor2<-sqrt(lambda[2])*e[,2]
+L2 <- cbind(commonFactor1,commonFactor2)
+L2
+```
+
+* m=3：
+
+$L$：
+
+```{r}
+commonFactor1<-sqrt(lambda[1])*e[,1]
+commonFactor2<-sqrt(lambda[2])*e[,2]
+commonFactor3<-sqrt(lambda[3])*e[,3]
+L3 <- cbind(commonFactor1,commonFactor2,commonFactor3)
+L3
+```
+
+### Maximum likelihood (factor analysis)
+
+* m=2：
+```{r}
+fa2 = factanal(as.data.frame(zData), factors=2,rotation ="none")
+fa2$loadings
+```
+
+* m=3：
+```{r}
+fa3 = factanal(as.data.frame(zData), factors=3,rotation ="none")
+fa3$loadings
+```
+
+其中，在R中，loading的絕對值小於0.1則會以空缺顯示，因此以上空缺的部分可以以一個極小值來看待。
+
+## (b)
+
+* rotated loading m=2：
+```{r}
+fa2 = factanal(as.data.frame(zData), factors=2,rotation = "varimax")
+fa2$loadings
+```
+
+* rotated loading m=3：
+```{r}
+fa3 = factanal(as.data.frame(zData), factors=3,rotation = "varimax")
+fa3$loadings
+```
+
+在轉軸前後可解釋的變異佔總變異的比例不變，但在轉軸後，明顯有部分變數的loading下降，部分上升，將原本散佈較為均勻的loading，轉為部分偏高部分偏低的型態，然而，在m=2時，兩個共同因子仍是趨於總體的指標，而m=3時，第二個共同因子較偏向創造力指標，第三個共同因子則是偏向較抽象推理的指標。
+
+
+## (c)
+
+* m=2：
+
+cummunalities：
+```{r}
+fa2.factor1<-fa2$loadings[1:7]  #factor1's loading
+fa2.factor2<-fa2$loadings[8:14] #factor2's loading
+h<-fa2.factor1^2+fa2.factor2^2
+h
+```
+
+specific：
+```{r}
+fa2.psi <- 1-h # 1-cummunalities
+fa2.psi
+```
+
+$\hat{L}\hat{L'} + \hat{\psi}$：
+```{r}
+fa2.L <- cbind(fa2.factor1,fa2.factor2)
+round(fa2.L%*%t(fa2.L)+diag(fa2.psi),4) #LL' + psi
+```
+
+* m=3：
+
+cummunalities：
+```{r}
+fa3.factor1<-fa3$loadings[1:7]  #factor1's loading
+fa3.factor2<-fa3$loadings[8:14] #factor2's loading
+h<-fa3.factor1^2+fa3.factor2^2
+h
+```
+
+specific：
+```{r}
+fa3.psi <- 1-h # 1-cummunalities
+fa3.psi
+```
+
+$\hat{L}\hat{L'} + \hat{\psi}$：
+```{r}
+fa3.L <- cbind(fa3.factor1,fa3.factor2)
+round(fa3.L%*%t(fa3.L)+diag(fa3.psi),4) #LL' + psi
+```
+
+在m=2時，共同因子可解釋的比例較m=3時高，而m=3的specific variance較大，因此在此以m=2作為選擇較佳。
+
+## (d)
+
+* m=2：  
+$\because ln(\frac{\begin{vmatrix}\hat{L}\hat{L'} + \hat{\psi}\end{vmatrix}}{\begin{vmatrix}S_n\end{vmatrix}})=2.633$，如下所示：
+```{r}
+rhat<-fa2.L%*%t(fa2.L)+diag(fa2.psi)
+log(det(rhat)/det(sigma))
+```
+
+$\therefore X^*=(n-1-(2p+4m+5)/6)ln(\frac{\begin{vmatrix}\hat{L}\hat{L'} + \hat{\psi}\end{vmatrix}}{\begin{vmatrix}S_n\end{vmatrix}})=117.1679$，如下所示：
+```{r}
+m=2
+coe <- 50-1-(m*7+4*m+5)/6
+coe*log(det(rhat)/det(sigma))
+```
+
+$X^2_{[(p-m)^2-p-m]/2}$：
+```{r}
+df=((7-m)^2-7-m)/2
+qchisq(0.99,df=df)
+```
+
+由於117.1679 > $X^2_{[(p-m)^2-p-m]/2}=20.09024$，所以拒絕虛無假設。
+
+* m=3：  
+
+$\because ln(\frac{\begin{vmatrix}\hat{L}\hat{L'} + \hat{\psi}\end{vmatrix}}{\begin{vmatrix}S_n\end{vmatrix}})=5.5549$，如下所示：
+```{r}
+rhat<-fa3.L%*%t(fa3.L)+diag(fa3.psi)
+log(det(rhat)/det(sigma))
+```
+
+$\therefore X^*=(n-1-(2p+4m+5)/6)ln(\frac{\begin{vmatrix}\hat{L}\hat{L'} + \hat{\psi}\end{vmatrix}}{\begin{vmatrix}S_n\end{vmatrix}})=237.0107$，如下所示：
+```{r}
+m=3
+coe <- 50-1-(m*7+4*m+5)/6
+coe*log(det(rhat)/det(sigma))
+```
+
+
+由於237.0107 > $X^2_{[(p-m)^2-p-m]/2}=20.09024$，所以拒絕虛無假設。
+
+由此檢定來判斷，m=3時的臨界值大於m=2時的臨界值，雖然結論都是拒絕虛無假設，但若以兩者相比較，m=2可能更適合，而是否要考慮m=1的模型可能仍須討論，因為此二者的結論都為拒絕假設。
+
+## (e)
+
+先將新資料標準化，並建立模型
+```{r}
+# Data preprocession
+newX <- c(110,98,105,15,18,12,35)
+sampleMean<-as.numeric(lapply(mydata[,1:7],FUN=mean))
+sampleVar <- as.numeric(lapply(mydata[,1:7],FUN=var))
+newZ<-(newX-sampleMean)/sqrt(sampleVar)
+
+fa2_reg = factanal(as.data.frame(zData),
+               factors=2,
+               rotation = "varimax",
+               scores = "regression")
+
+
+fa2_wls = factanal(as.data.frame(zData),
+                   factors=2,
+                   rotation = "varimax",
+                   scores = "Bartlett")
+```
+
+* Regression method ：
+```{r}
+# construct L and psi
+factor1<-fa2_reg$loadings[1:7]
+factor2<-fa2_reg$loadings[8:14]
+h<-factor1^2+factor2^2
+psi <- 1-h
+L <- cbind(factor1,factor2)
+library(matlib)
+psi_inv <- inv(diag(psi))
+
+# calculate coefficient
+coe <- inv(t(L)%*%psi_inv%*%L)%*%t(L)%*%psi_inv
+
+#Scores
+coe%*%newZ
+```
+
+* WLS method ：
+
+```{r}
+# construct L and psi
+factor1<-fa2_wls$loadings[1:7]
+factor2<-fa2_wls$loadings[8:14]
+h<-factor1^2+factor2^2
+psi <- 1-h
+L <- cbind(factor1,factor2)
+library(matlib)
+psi_inv <- inv(diag(psi))
+
+# calculate coefficient
+coe <- inv(t(L)%*%psi_inv%*%L)%*%t(L)%*%psi_inv
+
+#Scores
+coe%*%newZ
+```
+
+兩者評估新的資料結果一樣，可見結果顯示，在較偏重數理能力以及銷售能力的指標結果來說，新資料能力較為不足，然而，在偏重創造力來說，新資料表現較優異。
+
+
+
+
+
+
+
+
+
+

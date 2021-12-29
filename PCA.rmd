@@ -1,0 +1,102 @@
+---
+title: "Principal Component Analysis"
+author: "Bo-Syue Jiang"
+output:  
+  pdf_document:
+    includes:
+      in_header: header.tex
+    latex_engine: xelatex
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## (a) Using T0804.csv for example
+
+covariance matrix S ：
+```{r}
+#read data
+mydata.T0804 <- read.csv("T0804.csv",header=T)
+mydata.T0804 <- data.frame(mydata.T0804)
+
+#covariance matrix S
+S<-round(cov(mydata.T0804),5)
+S
+```
+
+
+Principal components：
+```{r}
+#eigen value
+lambda <- eigen(S)$values
+lambda
+#eigen vector
+e <- eigen(S)$vector
+e
+```
+
+根據R的輸出資料，可以得到PC如下：  
+\[\begin{aligned}
+PC_1 = 0.22x_1+ 0.30x_2+0.15x_3+ 0.64x_4+ 0.65x_5 \\
+PC_2 = 0.62x_1+ 0.58x_2+0.34x_3 -0.25x_4-0.32x_5\\
+PC_3 = 0.32x_1-0.26x_2-0.03x_3 -0.64x_4+0.64x_5 \\
+PC_4 = 0.66x_1 -0.37x_2 -0.55x_3+ 0.30x_4  -0.21x_5 \\
+PC_5 = 0.16x_1-0.61x_2+0.75x_3+ 0.18x_4  -0.12x_5\\ \end{aligned}
+\]
+
+## (b)
+
+PC之解釋力如下圖：
+```{r}
+#for each PC's explanation proportion
+library(ggplot2)
+pc.plot<-data.frame(lambda=lambda/sum(lambda))
+ggplot(pc.plot,aes(x=1:5,y=lambda))+
+  geom_point()+
+  geom_line(aes(x=1:5,y=lambda),color='red')+
+  scale_x_continuous(labels=paste0("PC",1:5))+
+  labs(x="Principle components",
+       y="Proportion",
+       title = "scree plot")+
+  theme_light()
+```
+
+
+PC之累積解釋變異程度如下：
+```{r}
+#Cumulative explanation proportion
+cumLambda.plot<-data.frame(cumLambda=cumsum(lambda/sum(lambda)))
+ggplot(data=cumLambda.plot,aes(x=1:5,y=cumLambda))+
+  geom_point()+
+  geom_step(lty=2)+
+  geom_text(vjust=-1,
+            aes(label=round(cumLambda,3)))+
+  scale_y_continuous(limits=c(0.45,1.1)) +
+  scale_x_continuous(labels=paste0("PC",1:5))+
+  labs(x="Principle components",
+       y="Cumulative proportion")
+```
+
+因此，由上圖可得知前三個PC解釋的變異程度約佔總變異的90%。
+
+## (d)
+
+根據(b)可知，前三個PC的解釋能力已經高達90%，甚至前2個PC的解釋能力也高達80%，因此透過PCA可將原本5個變數縮減為2個變數，維度由5縮減成2，並且解釋能力仍保有80%，由此可知，此分析方式確實能夠有效縮減維度。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,196 @@
+---
+title: "Hierarchical"
+author: "Bo-Syue Jiang"
+output:  
+  pdf_document:
+    includes:
+      in_header: header.tex
+    latex_engine: xelatex
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=FALSE)
+```
+
+# Take table_12_9.csv for example
+
+透過hierarchical分群後，可以明顯的看出資料被區分成四個群組，如下圖：
+
+
+```{r}
+#library("data.table")
+# setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+library(gridExtra)
+library(ggplot2)
+myData<-data.table::fread("table_12_9.csv")
+#View(myData)
+myData<-myData[,1:7]
+#summary(myData)
+#dim(myData)
+myData <- as.data.frame(myData)
+rownames(myData) <- myData$University
+myData <- myData[,2:7]
+E.dist <- dist(myData, method="euclidean")
+hclust_avg <- hclust(E.dist)
+# plot(hclust_avg,xlab="University")
+cut.h.cluster <- cutree(hclust_avg, k=4)
+cut.h.cluster<-as.data.frame(cut.h.cluster)
+# abline(a=15000,b=0,col="red",lty="dashed",lwd=2)
+library(ggdendro)
+ggdendrogram(hclust_avg)+
+  labs(title="Hierarchical")+
+  geom_segment(aes(x=0,y=15000,xend=25,yend=15000),
+               lty=2,lwd=2,col="red")
+
+```
+
+接著透過原先hierarchical計算每群平均後，作為kmeans的起始點，進行kmeans分群，而此時將原本hierarchical分群結果與kmeans分群結果進行PCA後，再依照各群給上不同的標記，並繪製出以x軸為PC1，y軸為PC2的散佈圖，並可見透過hierarchical分群與kmeans分群結果差異不大，下圖中只有一個點有不同的結果：
+
+```{r}
+myMean <- aggregate(myData,by=list(cluster=cut.h.cluster$cut.h.cluster),FUN=mean)
+myData2<-cbind(myData,cut.h.cluster)
+myData2$cut.h.cluster <- as.factor(myData2$cut.h.cluster)
+
+pca<-princomp(myData)
+h<-ggplot(myData2,aes(x=pca$scores[,1],y=pca$scores[,2],pch=myData2$cut.h.cluster))+
+  geom_point(size=5,show.legend = "hide")+
+  labs(x="PC1",y="PC2",title="hierarchical")
+
+kInitial<-myMean[,2:7]
+kmeansResult<-kmeans(myData,kInitial)
+cut.k.cluster<-as.data.frame(kmeansResult$cluster)
+
+k<-ggplot(myData2,aes(x=pca$scores[,1],y=pca$scores[,2],pch=as.factor(cut.k.cluster$`kmeansResult$cluster`)))+
+  geom_point(size=5,show.legend = "hide")+
+  labs(x="PC1",y="PC2",title="kmeans")
+
+
+library(ggpubr)
+marrangeGrob(list(h,k), nrow=1, ncol=2, top="")
+
+
+```
+
+接著，分別計算四個群的平均後，以折線圖繪出，便可見四個不同的群中，各個變數之間的高低優劣，如下圖所示，由圖可見1,2群的入學率偏低，但畢業比例非常高，而第3群則是費用相當高，最後第4群是以入學率最高為主。
+
+```{r}
+
+library(tidyverse)
+
+aa<-scale(myMean[,2:7])
+
+aa<-as.data.frame(aa)
+aa<-data.frame(cbind(data.frame(cluster=c(1:4)),aa))
+temp<-gather(aa,SAT,ToplO,Accept,
+             SFRatio,Expenses,Grad,key=variables,value=value)
+temp$cluster <- as.factor(temp$cluster)
+
+
+aa2<-arrange(temp,cluster)
+p1<-ggplot(aa2[1:6,],aes(x=1:6,y=aa2[1:6,3]))+
+  geom_point()+geom_line()+
+  scale_x_discrete(limits=as.factor(1:6),labels=aa2[1:6,2]) +
+  labs(title="Cluster 1",x="Variables",y="Value")+
+  theme(axis.text.x = element_text(angle=45))
+  
+p2<-ggplot(aa2[7:12,],aes(x=1:6,y=aa2[7:12,3]))+
+  geom_point()+geom_line()+
+  scale_x_discrete(limits=as.factor(1:6),labels=aa2[1:6,2]) +
+  labs(title="Cluster 2",x="Variables",y="Value")+
+  theme(axis.text.x = element_text(angle=45))
+
+p3<-ggplot(aa2[13:18,],aes(x=1:6,y=aa2[13:18,3]))+
+  geom_point()+geom_line()+
+  scale_x_discrete(limits=as.factor(1:6),labels=aa2[1:6,2]) +
+  labs(title="Cluster 3",x="Variables",y="Value")+
+  theme(axis.text.x = element_text(angle=45))
+
+p4<-ggplot(aa2[19:24,],aes(x=1:6,y=aa2[19:24,3]))+
+  geom_point()+geom_line()+
+  scale_x_discrete(limits=as.factor(1:6),labels=aa2[1:6,2]) +
+  labs(title="Cluster 4",x="Variables",y="Value")+
+  theme(axis.text.x = element_text(angle=45))
+
+
+marrangeGrob(list(p1,p2,p3,p4), nrow=2, ncol=2, top="")
+
+
+```
+
+# 2.
+
+## 12.14
+
+### (a)
+
+透過歐式距離計算每個觀測值之間的距離矩陣，其中前5筆如下所示：
+
+```{r}
+myData <- data.table::fread("1191_1.csv")
+variable <- myData[,3:10]
+
+variable <- as.data.frame(variable)
+rownames(variable) <- myData$Brand
+#View(variable)
+
+
+variable.dist<-as.data.frame(as.matrix(dist(variable,method = "euclidean")))
+round(head(variable.dist[,1:5],5),2)
+```
+
+
+### (b)
+
+藉由(a)所得到的距離矩陣，可以進行hierarchical分群，而透過single linkage的方式計算，得到的圖形如下：
+
+```{r}
+var.dist<-dist(variable,method = "euclidean")
+h.single<-hclust(var.dist,method = "single")
+ggdendrogram(h.single)+
+  labs(title="Hierarchical - single method")+
+  geom_segment(aes(x=0,y=85,xend=45,yend=85),
+               lty=2,lwd=2)
+```
+
+可見藉由single linkage將觀測值大致分成三群，但有一群只包含一個觀測值，而大部分的資料集中在中間的群內，可見分群效果並不是非常理想，接著進行complete linkage的計算方式，同樣得到hierarchical圖形如下：
+
+```{r}
+
+h.complete<-hclust(var.dist,method = "complete")
+ggdendrogram(h.complete)+
+  labs(title="Hierarchical - complete method")+
+  geom_segment(aes(x=0,y=275,xend=45,yend=275),
+               lty=2,lwd=2)
+```
+
+由complete linkage的方式，同樣將資料分成三群，但群中的資料筆數大致上不會差異非常多，分布較single linkage來說平均，可見其分群效果也較佳。
+
+
+## 12.15
+
+透過k-means分群，分成2,3,4群後，再透過群內總變異與hierchical比較，如下圖，左圖為hierarchical，右圖為kmeans結果，x軸代表分成k群，y軸代表群內總變異。
+
+```{r}
+require(factoextra)
+a<-fviz_nbclust(variable, 
+             FUNcluster = hcut,  # hierarchical clustering
+             method = "wss",     # total within sum of square
+             k.max = 12 
+)
+b<-fviz_nbclust(variable, 
+             FUNcluster = kmeans,  # hierarchical clustering
+             method = "wss",     # total within sum of square
+             k.max = 12          # max number of clusters to consider
+)
+
+marrangeGrob(list(a,b), nrow=1, ncol=2, top="")
+```
+
+比較兩圖後可以發現，在分成3群時，hierarchical的群內總變異低於kmeans的結果，但到了第4群後，兩種分群結果差異不大，因此若以三群來討論的話，以hierarchical分群為優先考量，而其他群數來說，兩者皆可。
+
+
+
+

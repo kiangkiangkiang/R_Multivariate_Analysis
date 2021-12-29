@@ -1,0 +1,232 @@
+---
+title: "canonical variates and correlations"
+author: "Bo-Syue-Jiang"
+output:  
+  pdf_document:
+    includes:
+      in_header: header.tex
+    latex_engine: xelatex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning=FALSE)
+```
+
+# Take the following covariance matrix for example
+
+```{r results='hide',echo=FALSE}
+
+CorMatrix <- cbind(c(1,0.738,0.731,0.828,0.681,0.712,0.625,0.604),
+                   c(0.738,1,0.52,0.688,0.831,0.543,0.322,0.303),
+                   c(0.731,0.52,1,0.652,0.513,0.826,0.579,0.617),
+                   c(0.828,0.688,0.652,1,0.887,0.867,0.639,0.563),
+                   c(0.681,0.831,0.513,0.887,1,0.692,0.419,0.352),
+                   c(0.712,0.543,0.826,0.867,0.692,1,0.608,0.610),
+                   c(0.625,0.322,0.579,0.639,0.419,0.608,1,0.937),
+                   c(0.604,0.303,0.617,0.563,0.352,0.610,0.937,1))
+CorMatrix <- as.matrix(CorMatrix)
+colnames(CorMatrix) <- c("HRA","HRE","HRS","RRA","RRE","RRS","Q","REV")
+
+#a^-0.5
+halfPower<-function(Sigma){
+  lamda <- solve(eigen(Sigma)$vectors)%*%Sigma%*% (eigen(Sigma)$vectors)
+  diag(sqrt(diag(lamda)))
+  lamda_sqrt <- diag(sqrt(diag(lamda)))
+  Sigma_sqrt <- (eigen(Sigma)$vectors)%*%lamda_sqrt%*% solve( eigen(Sigma)$vectors)
+  solve(Sigma_sqrt)
+}
+
+#10.16
+n<-46
+s11 <- rbind(c(1106,396.7,108.4),
+             c(396.7,2382,1143),
+             c(108.4,1143,2136))
+s12 <- rbind(c(0.787,26.23),
+             c(-0.214,-23.96),
+             c(2.189,-20.84))
+s21 <- rbind(c(0.787,-0.214,2.189),
+             c(26.23,-23.96,-20.84))
+s22 <- rbind(c(0.016,0.216),
+             c(0.216,70.56))  
+s <- rbind(cbind(s11,s12),cbind(s21,s22))
+```
+
+```{r}
+CorMatrix
+```
+
+## (a)
+
+* 將原本的correlation matrix 切割成4個矩陣($\rho_{11},\rho_{12},\rho_{21},\rho_{22}$)
+
+$\rho_{11}$：
+```{r}
+rho11 <- CorMatrix[1:6,1:6]
+rho11 
+```
+
+$\rho_{12}$：
+```{r}
+rho12 <- CorMatrix[1:6,7:8]
+rho12
+```
+
+$\rho_{21}$：
+```{r}
+rho21 <- CorMatrix[7:8,1:6]
+rho21
+```
+
+$\rho_{22}$：
+```{r}
+rho22 <- CorMatrix[7:8,7:8]
+rho22
+```
+
+* $\rho_{11}^{-\frac{1}{2}}\rho_{12}\rho_{22}^{-1}\rho_{21}\rho_{11}^{-\frac{1}{2}}$：
+```{r}
+digMatrix<-halfPower(rho11)%*%rho12%*%solve(rho22)%*%rho21%*%halfPower(rho11)
+round(digMatrix,3)
+```
+
+* eigenvalue：  
+```{r}
+lambda<-eigen(digMatrix)$values
+lambda
+```
+
+* eigenvectors ($e_1$)：
+```{r}
+e1<-eigen(digMatrix)$vectors[1:6,1]
+e1
+```
+
+* $a_1=\rho_{11}^{-\frac{1}{2}}e_1$：
+```{r}
+a1<-halfPower(rho11)%*%e1
+a1
+```
+
+* $b_1=\rho_{22}^{-\frac{1}{2}}f_1\\f_1=\rho_{22}^{-\frac{1}{2}}\rho_{21}\rho_{11}^{-\frac{1}{2}}e_1=\rho_{22}^{-\frac{1}{2}}\rho_{21}a_1$：
+```{r}
+f1 <- halfPower(rho22)%*%rho21%*%a1
+b1<-halfPower(rho22)%*%f1
+b1
+```
+
+* scale $b_1$ to Var($V_1$)=1
+```{r}
+b1 <- b1/sqrt(as.numeric(t(b1)%*%rho22%*%b1))
+b1
+```
+
+* $U_1,V_1$：
+
+\[\begin{aligned}\therefore U_1 &= a_1'Z^{(1)}=-0.495Z^{(1)}_1+0.213Z^{(1)}_2+0.723Z^{(1)}_3+2.775Z^{(1)}_4-1.384Z^{(1)}_5-1.033Z^{(1)}_6\\ V_1&=b_1'Z^{(2)}=1.39Z^{(2)}_1-0.432Z^{(2)}_2\end{aligned}\]
+
+* canonical correlation ：
+$\rho_1^* = \sqrt{\rho_1^{*2}}=\sqrt{\lambda_1}=\sqrt{0.5655}=0.752$
+  
+$U_1$ might be interpreted as a accounting measures index.  
+$V_1$ might be interpreted as a two market measures index.
+the correlation of the first sample canonical variate pair is 0.752.
+
+## (b)
+
+the total sample variance for $Z^{(1)} = p = 6$.  
+
+the total sample variance for $Z^{(2)} = q = 2$.      
+  
+the contributions of the first canonical variates to the total sample variance = $\sum^{p}_{k=1}r^2_{U_1,Z^{(1)}_k}$  
+
+$\because A^{-1}$：
+```{r}
+e<-eigen(digMatrix)$vectors
+A1<-halfPower(rho11)%*%e
+solve(A1)
+```
+
+$\therefore \sum^{p}_{k=1}r^2_{U_1,Z^{(1)}_k} = 0.811^2+(-0.271)^2+(0.120)^2+(0.479)^2+(0.037)^2+(0.154)^2=1$
+
+$\because B^{-1}$：
+```{r}
+digMatrix.B<-halfPower(rho22)%*%rho21%*%solve(rho11)%*%rho12%*%halfPower(rho22)
+e.B<-eigen(digMatrix.B)$vectors
+B1<-halfPower(rho22)%*%e.B
+solve(B1)
+```
+$\therefore \sum^{p}_{k=1}r^2_{V_1,Z^{(2)}_k} = (-0.989)^2+(-0.151)^2=1$
+
+因此，由上可得知，$U_1$可解釋的變異占總變異的1/6，$V_1$可解釋的變異占總變異的1/2。
+
+
+
+## canonical variates and correlations.
+
+* coefficient A
+```{r}
+digMatrix<-halfPower(s11)%*%s12%*%solve(s22)%*%s21%*%halfPower(s11)
+lambda <- eigen(digMatrix)$values
+lambda<-round(lambda,6)
+e<-eigen(digMatrix)$vectors
+A1<-halfPower(s11)%*%e
+A1
+```
+
+* coefficient B
+```{r}
+digMatrix.B<-halfPower(s22)%*%s21%*%solve(s11)%*%s12%*%halfPower(s22)
+e.B<-eigen(digMatrix.B)$vectors
+B1<-halfPower(s22)%*%e.B
+B1
+```
+
+* correlation $\hat{\rho^*}$
+```{r}
+c(sapply(lambda[1:2],FUN=sqrt),0)
+```
+
+由上述資訊可以以下表形式呈現：
+
+\begin{table}[h]
+\label{tab:canonical}
+\centering
+\caption{Canonical Variate Coefficients and Canonical Correlations}
+\extrarowheight=6pt 
+\begin{tabular}{cccc|c|ccc}
+  &$X_1^{(1)}$&$X_2^{(1)}$&$X_3^{(1)}$&$\hat{\rho^*_i}$&&$X_1^{(2)}$&$X_2^{(2)}$\\\hline
+  $\hat{a_1'}:$&0.013&-0.014&0.023& 0.517&$\hat{b_1'}:$ &-8.066&0.019\\
+  $\hat{a_2'}:$&0.025&-0.009&-0.009&0.126&$\hat{b_2'}:$ &0.375& -0.120\\
+\end{tabular}
+\end{table}
+
+* 第一組canonical variate
+
+\[\begin{aligned}&\hat{U_1}=0.013X_1^{(1)}-0.014X_2^{(1)}+0.023X_3^{(1)}\\
+&\hat{V_1}=-8.066X_1^{(2)}+0.019X_2^{(2)}\end{aligned}
+\]
+
+* 第二組canonical variate
+
+\[\begin{aligned}&\hat{U_2}=0.025X_1^{(1)}-0.009 X_2^{(1)}-0.009 X_3^{(1)}\\
+&\hat{V_2}=0.375X_1^{(2)}-0.120X_2^{(2)}\end{aligned}
+\]
+
+## the first canonical variates explaination
+
+* $A^{-1}$
+```{r}
+s
+solve(A1)
+```
+因此$U_1$可解釋的變異為$(11.298^2+22.740^2+ 21.476^2)/(1106+2382+2136)=0.1967$
+
+* $B^{-1}$
+```{r}
+solve(B1)
+```
+$V_1$可解釋的變異為$(-0.1249^2+-0.0199^2)/(0.016+70.560)=0.0002$
+
+由此可知，($U_1,V_1$)可解釋的變異佔總變異的比例都不高，因此第一組canonical variates不為一個好的指標。
+

@@ -1,0 +1,168 @@
+---
+title: "Multivariate - MANOVA and Reg."
+author: "Bo-Syue Jiang"
+date: "`r format(Sys.time(), ' %Y / %m / %d')`" 
+output:  
+  pdf_document:
+    includes:
+      in_header: header.tex
+    latex_engine: xelatex
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 資料解釋
+資料來自UCI dataset，網址為；https://archive.ics.uci.edu/ml/datasets/Student+Performance
+
+* 第一個構面的變數包含性別(sex:F,M)，年齡(age:15\~22)，居住地(address:U(市區),R(郊區))，家庭關係(famrel:1(極差)\~5(極好))，健康(health:1(極差)\~5(極好))。  
+* 第二個構面的變數包含家庭大小(famsize:LE3(不超過3人),GT3(超過3人))，父母同居狀況(Pstaus:T(住一起),A(分開住))，媽媽教育程度(Medu:0(無),1(小學),2(國中),3(高中),4(大學以上))，爸爸教育程度(Fedu:同媽媽)，媽媽職業(Mjob:teacher(老師),health(醫療相關),services(公民服務,如行政或警察),at_home(在家),other(其他))，爸爸職業(Fjob:同媽媽)。  
+* 第三個構面的變數包含就讀原因(reason:home(在家附近),reputation(學校聲譽),course(課程偏好),other(其他))，家裡到學校的時間(traveltime:1(15分鐘內),2(15到30分鐘),3(30分鐘到1小時),4(1小時以上))，每週讀書時間(studytime:1(少於2小時),2(2至5小時),3(5至10小時),4(10小時以上))，過去被當次數(failures:0 \~ 3)，有無補習(schoolsup:yes,no)，家庭教育支持(famsup:yes,no)，是否想拿更高學位(higher:yes,no)，缺席數(absences:0~93)。  
+* 第四個構面的變數包含課外活動(activities:yes,no)，上網(internet:yes,no)，談戀愛(romantic:yes,no)，放學自由時間(freetime:1(很少)\~5(很多))，和朋友外出(goout:1(很少)\~5(很多))，平日喝酒(Dalc:1(很少)\~5(很多))，假日喝酒(Walc:1(很少)\~5(很多))  
+* 應變數包含第一次期中考成績(G1:0\~20)，第二次期中考成績(G2:0\~20)，期末考成績(G3:0\~20)  
+
+資料前10筆顯示如下：
+```{r DATA}
+mydata<-read.csv('student_useme.csv',header = T)
+head(mydata,10)
+```
+
+# 變異數分析
+
+在變異數分析中，首先探討哪些潛在因素影響應變數y(考試成績:G1,G2,G3)，因此我們取出資料集中部分非計量(non-metric)的資料作為可能影響應變數之因素，其中包含居住地(address)，讀書時間(studytime)，是否談戀愛(romantic)和外出多寡(goout)。
+```{r dataPrepare ,echo=FALSE,results=FALSE}
+treatment<-mydata[,c('address','studytime','romantic','goout')]
+#let address:U,R -> address:0(U),1(R)
+treatment$address<-factor(treatment$address)
+levels(treatment$address) <- c(1,0)
+#let romantic:yes,no -> 1,0
+treatment$romantic<-factor(treatment$romantic)
+levels(treatment$romantic) <- c(0,1)
+
+treatment$studytime<-factor(treatment$studytime)
+treatment$goout<-factor(treatment$goout)
+
+y1<-mydata$G1
+y2<-mydata$G2
+y3<-mydata$G3
+```
+## ANOVA
+
+而從上述變數中，透過anova來觀察各個處理是否顯著影響成績，首先分開看處理對於3次考試成績的個別影響，以居住地(address)為例：  
+
+* 處理為居住地，觀測值為第一次期中考成績之ANOVA表
+```{r anova_exy1 ,echo=FALSE}
+test11<-data.frame(y1,address = treatment$address)
+aov.test11 = aov(y1~address, data=test11)
+summary(aov.test11)
+```
+* 處理為居住地，觀測值為第二次期中考成績之ANOVA表
+```{r anova_exy2 ,echo=FALSE}
+test12<-data.frame(y2,address = treatment$address)
+aov.test12 = aov(y2~address, data=test12)
+summary(aov.test12)
+```
+* 處理為居住地，觀測值為期末考成績之ANOVA表
+```{r anova_exy3 ,echo=FALSE}
+test13<-data.frame(y3,address = treatment$address)
+aov.test13 = aov(y3~address, data=test13)
+summary(aov.test13)
+```
+由此例可看出，不同的居住地對於第二次期中考成績與期末考成績有顯著影響，但對於第一次期中考成績並沒有顯著影響。  
+
+而依此類推，可以整理各個處理對考試成績影響之anova表如下：
+
+\begin{table}[h]
+\label{tab:anova}
+\centering
+\caption{各個處理anova表之p-value}
+\extrarowheight=6pt 
+\begin{tabular}{c|r|r|r}
+  &第一次成績	& 第二次成績	& 期末考成績	\\\hline
+  居住地& 0.1670\  &0.0122* &0.0356* \\
+  讀書時間& 0.0038* & 0.0402* &0.1610\  \\
+  談戀愛& 0.4610\  & 0.0263* & 0.0097* \\
+  外出時間& 0.0211* & 0.0087* & 0.0144* \\
+\end{tabular}
+\end{table}
+
+上述可看出各別看大部分處理都對於考試成績有顯著影響。
+
+## MANOVA
+
+而若是同時觀察各個處理對於所有成績的影響，則透過MANOVA進行實驗，在此也先分別透過各個處理對於3項成績進行MANOVA實驗，以居住地為例：
+```{r manova_ex ,echo=FALSE}
+test<-data.frame(y1,y2,y3,romantic= treatment$romantic,goout = treatment$goout,studytime = treatment$studytime,address = treatment$address)
+test.manova <- manova(cbind(y1,y2,y3)~address,data=test)
+summary(test.manova)
+```
+由上述MANOVA表可看出，p-value<0.05，因此同時以三項成績來觀察，居住地也有顯著影響，而透過此方式，建立以下MANOVA表：
+
+\newpage
+
+\begin{table}[h]
+\label{tab:manova}
+\centering
+\caption{各個處理manova表之p-value}
+\extrarowheight=6pt 
+\begin{tabular}{c|r}
+  &三次成績	\\\hline
+  居住地& 0.03885* \\
+  讀書時間& 0.02329*  \\
+  談戀愛& 0.00546* \\
+  外出時間& 0.09667 \\
+\end{tabular}
+\end{table}
+
+可看出，雖然在個別的成績觀察中，外出時間都有顯著影響，但同時以三次段考成績來看，外出時間卻不顯著，而其他三者因素都有顯著影響成績。
+
+最後，我們去除外出時間之因素，並透過three-way MANOVA來觀察其他三項因素，在同時觀察所有成績中，是否存在交互作用：
+```{r tr_manova,echo=FALSE}
+test.manova <- manova(cbind(y1,y2,y3)~romantic*studytime*address,data=test)
+summary(test.manova)
+```
+由three-way MANOVA表可看出，交互作用皆不存在，並且在此例中，有無談戀愛這項因子相較於其他變數最為顯著影響著三次考試成績。
+
+# 迴歸分析
+
+## Multiple Reg.
+
+在迴歸分析中，藉由先前變數談戀愛(romantic)和讀書時間(studytime)以及增加兩項連續型變數包括：缺席次數(absences)和被當次數(failures)建立複迴歸模型
+
+```{r regm1,echo=FALSE}
+regdata<-data.frame(y1,y2,y3,romantic=treatment$romantic,
+                    studytime=treatment$studytime,
+                    absences=mydata$absences,
+                    failures=mydata$failures)
+m1=lm(y3~.-y1-y2,data=regdata)
+summary(m1)
+```
+
+由迴歸分析結果可見，談戀愛與被當次數跟期末考成績有顯著關係，但由於此二者皆類似非計量變數，因此模型解釋力不高，可能還需要額外新增其他計量變數來解釋模型的變異程度，而在此同時發現到，讀書時間和缺席次數都與期末考成績無顯著關係，因此嘗試除去此變數後重新建立迴歸模型。
+
+```{r regm2,echo=FALSE}
+m2<-lm(y3~romantic+failures,data=regdata)
+summary(m2)
+```
+
+去除不顯著的變數後，我們發現$R^2$僅下降0.014左右，影響不大，因此去除變數後的模型可能較佳。
+
+## Multivariate Multiple Reg.
+
+在多變量之迴歸模型當中，同時以3次考試成績作為應變數之考量，而自變量和先前一樣，選擇談戀愛(romantic)和讀書時間(studytime)以及缺席次數(absences)和被當次數(failures)以建立迴歸模型。
+
+```{r regm3 ,echo=FALSE}
+m3 <- lm(cbind(y1,y2,y3)~.,data=regdata)
+summary(manova(m3))
+```
+
+由上輸出可見所有變數與考試成績皆有顯著關係，但由個別迴歸模型觀察來看，自變數與應變數的相關性並不高，也有可能是因為自變數較多為非計量資料，使得其結果分析之顯著性不達預期。
+
+
+
+
